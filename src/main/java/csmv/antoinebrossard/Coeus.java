@@ -24,8 +24,7 @@ public class Coeus extends TimedRobot {
   private @Inject @Channel(Channel.Value.WHEEL_BACK_LEFT) PWMVictorSPX wheelBackLeftMotor;
   private @Inject @Channel(Channel.Value.JOYSTICK) Joystick joystick;
   private @Inject RollerController rollerController;
-
-  private final AHRS gyroscope = new AHRS();
+  private @Inject AHRS gyroscope;
 
   private final DoubleSolenoid gripSolenoid = new DoubleSolenoid(
           0,
@@ -63,7 +62,8 @@ public class Coeus extends TimedRobot {
 
   @Override
   public void teleopPeriodic() {
-    double slider = Math.max(0.01, Math.min(1, -joystick.getThrottle()+1));
+    double slider = Math.max(0.01, Math.min(1, (-joystick.getThrottle()+1)/2));
+    System.out.println(slider);
 
     mecanumDrive.driveCartesian(
             -joystick.getY() * slider,
