@@ -6,6 +6,7 @@ package csmv.antoinebrossard;
 
 import com.kauailabs.navx.frc.AHRS;
 import csmv.antoinebrossard.annotation.Channel;
+import csmv.antoinebrossard.controller.BallLockController;
 import csmv.antoinebrossard.controller.RollerController;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.Joystick;
@@ -23,9 +24,10 @@ public class Coeus extends TimedRobot {
   private @Inject @Channel(Channel.Value.WHEEL_FRONT_LEFT) PWMVictorSPX wheelFrontLeftMotor;
   private @Inject @Channel(Channel.Value.WHEEL_BACK_LEFT) PWMVictorSPX wheelBackLeftMotor;
   private @Inject @Channel(Channel.Value.JOYSTICK) Joystick joystick;
-  private @Inject RollerController rollerController;
 
-  private final AHRS gyroscope = new AHRS();
+  private @Inject RollerController rollerController;
+  private @Inject BallLockController ballLockController;
+  private @Inject AHRS gyroscope;
 
   private final DoubleSolenoid gripSolenoid = new DoubleSolenoid(
           0,
@@ -63,31 +65,42 @@ public class Coeus extends TimedRobot {
 
   @Override
   public void teleopPeriodic() {
-    double slider = Math.max(0.01, Math.min(1, (-joystick.getThrottle()+1)/2));
-    System.out.println(slider);
+    double sensitivity = Math.max(0.01, Math.min(1, (-joystick.getThrottle()+1)/2));
 
     mecanumDrive.driveCartesian(
-            -joystick.getY() * slider,
-            joystick.getX() * slider,
-            joystick.getZ() * slider,
+            -joystick.getY() * sensitivity,
+            joystick.getX() * sensitivity,
+            joystick.getZ() * sensitivity,
             gyroscope.getAngle()
     );
 
-    if (joystick.getRawButton(1)) {
-      rollerController.rotateInwards();
-    } else if (joystick.getRawButton(2)) {
-      rollerController.rotateOutwards();
-    } else {
-      rollerController.still();
+    if (joystick.getRawButtonPressed(1)) {
+      if (!rollerController.isActivated()) {
+        rollerController.rotateInwards();
+      } else {
+        rollerController.still();
+      }
+    } else if (joystick.getRawButtonPressed(2)) {
+      if (!rollerController.isActivated()) {
+        rollerController.rotateOutwards();
+      } else {
+        rollerController.still();
+      }
     }
 
     if (joystick.getRawButtonPressed(7)) {
       System.out.println("GRIP SOLENOID");
+      if (gripSolenoid.get() == DoubleSolenoid.Value.kOff) {
+        gripSolenoid.set(DoubleSolenoid.Value.kForward);
+      }
       gripSolenoid.toggle();
     }
 
     if (joystick.getRawButtonPressed(8)) {
       System.out.println("SLIDE SOLENOID");
+      if (slideSolenoid.get() == DoubleSolenoid.Value.kOff) {
+        slideSolenoid.set(DoubleSolenoid.Value.kForward);
+      }
       slideSolenoid.toggle();
     }
 
@@ -95,6 +108,11 @@ public class Coeus extends TimedRobot {
       System.out.println("TURNING OFF SOLENOIDS");
       gripSolenoid.set(DoubleSolenoid.Value.kOff);
       slideSolenoid.set(DoubleSolenoid.Value.kOff);
+    }
+
+    if (joystick.getRawButtonPressed(3)) {
+      System.out.println("BALL");
+      ballLockController.toggle();
     }
   }
 }

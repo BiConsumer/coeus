@@ -1,6 +1,7 @@
 package csmv.antoinebrossard.util;
 
 import csmv.antoinebrossard.annotation.Channel;
+import edu.wpi.first.hal.util.AllocationException;
 import me.yushust.inject.Binder;
 
 import java.lang.annotation.Annotation;
@@ -24,14 +25,10 @@ public final class ChannelBinder {
     {
         Constructor<T> constructor = clazz.getConstructor(Integer.TYPE);
 
-        Set<Integer> binded = new HashSet<>();
-
         for (Channel.Value value : Channel.Value.values()) {
-            if (binded.contains(value.getNumber())) {
+            if (value.getTargetClass() != clazz) {
                 continue;
             }
-
-            binded.add(value.getNumber());
 
             try {
                 T instance = constructor.newInstance(value.getNumber());

@@ -3,6 +3,7 @@ package csmv.antoinebrossard.inject;
 import csmv.antoinebrossard.record.RecordModule;
 import csmv.antoinebrossard.util.ChannelBinder;
 import edu.wpi.first.wpilibj.Joystick;
+import edu.wpi.first.wpilibj.Servo;
 import edu.wpi.first.wpilibj.motorcontrol.PWMVictorSPX;
 import me.yushust.inject.AbstractModule;
 
@@ -13,6 +14,7 @@ public class DefaultModule extends AbstractModule {
         try {
             ChannelBinder.bind(PWMVictorSPX.class, binder());
             ChannelBinder.bind(Joystick.class, binder());
+            ChannelBinder.bind(Servo.class, binder());
         } catch (Exception exception) {
             exception.printStackTrace();
         }
