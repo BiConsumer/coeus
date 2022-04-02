@@ -4,115 +4,103 @@
 
 package csmv.antoinebrossard;
 
-import com.kauailabs.navx.frc.AHRS;
-import csmv.antoinebrossard.annotation.Channel;
-import csmv.antoinebrossard.controller.BallLockController;
-import csmv.antoinebrossard.controller.RollerController;
-import edu.wpi.first.wpilibj.DoubleSolenoid;
-import edu.wpi.first.wpilibj.Joystick;
-import edu.wpi.first.wpilibj.PneumaticsModuleType;
-import edu.wpi.first.wpilibj.TimedRobot;
+import csmv.antoinebrossard.annotation.Port;
+import csmv.antoinebrossard.button.ButtonAction;
+import csmv.antoinebrossard.controller.CameraController;
+import csmv.antoinebrossard.record.*;
+import edu.wpi.first.wpilibj.*;
 import edu.wpi.first.wpilibj.drive.MecanumDrive;
-import edu.wpi.first.wpilibj.motorcontrol.PWMVictorSPX;
+import edu.wpi.first.wpilibj.interfaces.Gyro;
 
 import javax.inject.Inject;
+import javax.inject.Named;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.util.List;
+import java.util.Map;
 
 public class Coeus extends TimedRobot {
 
-  private @Inject @Channel(Channel.Value.WHEEL_FRONT_RIGHT) PWMVictorSPX wheelFrontRightMotor;
-  private @Inject @Channel(Channel.Value.WHEEL_BACK_RIGHT) PWMVictorSPX wheelBackRightMotor;
-  private @Inject @Channel(Channel.Value.WHEEL_FRONT_LEFT) PWMVictorSPX wheelFrontLeftMotor;
-  private @Inject @Channel(Channel.Value.WHEEL_BACK_LEFT) PWMVictorSPX wheelBackLeftMotor;
-  private @Inject @Channel(Channel.Value.JOYSTICK) Joystick joystick;
+  private @Inject @Port(Port.Value.JOYSTICK) Joystick joystick;
+  private @Inject @Port(Port.Value.TEAM_SWITCH) DigitalInput teamSwitch;
+  private @Inject @Named("grip") DoubleSolenoid gripSolenoid;
+  private @Inject @Named("slide") DoubleSolenoid slideSolenoid;
+  private @Inject @Named("saveDirectory") File saveDirectory;
 
-  private @Inject RollerController rollerController;
-  private @Inject BallLockController ballLockController;
-  private @Inject AHRS gyroscope;
+  private @Inject MecanumDrive mecanumDrive;
+  private @Inject Gyro gyroscope;
 
-  private final DoubleSolenoid gripSolenoid = new DoubleSolenoid(
-          0,
-          PneumaticsModuleType.CTREPCM,
-          0,
-          4
-  );
+  private @Inject Recorder recorder;
+  private @Inject RecordRunner recordRunner;
+  private @Inject RecordDeserializer recordDeserializer;
 
-  private final DoubleSolenoid slideSolenoid = new DoubleSolenoid(
-          0,
-          PneumaticsModuleType.CTREPCM,
-          1,
-          5
-  );
+  private @Inject CameraController cameraController;
+  private @Inject Map<Integer, ButtonAction> buttonActions;
 
-  private MecanumDrive mecanumDrive;
+  private long startMillis;
+  private List<Record> recordList;
 
   @Override
   public void robotInit() {
     System.out.println("INITIALIZING");
 
-    wheelFrontRightMotor.setInverted(true);
-    wheelBackRightMotor.setInverted(true);
-
-    gripSolenoid.set(DoubleSolenoid.Value.kReverse);
+    cameraController.start();
+    gripSolenoid.set(DoubleSolenoid.Value.kForward);
     slideSolenoid.set(DoubleSolenoid.Value.kReverse);
+  }
 
-    mecanumDrive = new MecanumDrive(
-            wheelFrontLeftMotor,
-            wheelBackLeftMotor,
-            wheelFrontRightMotor,
-            wheelBackRightMotor
+  @Override
+  public void autonomousInit() {
+    File autonomousFile = new File(
+            saveDirectory.getPath()
+                    + "/"
+                    + (teamSwitch.get() ? "right.flux" : "left.flux")
     );
+
+    if (!autonomousFile.exists()) {
+      return;
+    }
+
+    try {
+      recordRunner.play(recordDeserializer.deserialize(autonomousFile));
+    } catch (FileNotFoundException exception) {
+      exception.printStackTrace();
+    }
+  }
+
+  @Override
+  public void autonomousPeriodic() {
+    recordRunner.next();
   }
 
   @Override
   public void teleopPeriodic() {
     double sensitivity = Math.max(0.01, Math.min(1, (-joystick.getThrottle()+1)/2));
 
+    double ySpeed = -joystick.getY() * sensitivity;
+    double xSpeed = joystick.getX() * sensitivity;
+    double zRotation = joystick.getZ() * sensitivity;
+
     mecanumDrive.driveCartesian(
-            -joystick.getY() * sensitivity,
-            joystick.getX() * sensitivity,
-            joystick.getZ() * sensitivity,
+            ySpeed,
+            xSpeed,
+            zRotation,
             gyroscope.getAngle()
     );
 
-    if (joystick.getRawButtonPressed(1)) {
-      if (!rollerController.isActivated()) {
-        rollerController.rotateInwards();
-      } else {
-        rollerController.still();
-      }
-    } else if (joystick.getRawButtonPressed(2)) {
-      if (!rollerController.isActivated()) {
-        rollerController.rotateOutwards();
-      } else {
-        rollerController.still();
+    recorder.push(
+            "movement",
+            Double.toString(ySpeed),
+            Double.toString(xSpeed),
+            Double.toString(zRotation)
+    );
+
+    for (Map.Entry<Integer, ButtonAction> buttonEntry : buttonActions.entrySet()) {
+      if (joystick.getRawButtonPressed(buttonEntry.getKey())) {
+        buttonEntry.getValue().pressed();
       }
     }
 
-    if (joystick.getRawButtonPressed(7)) {
-      System.out.println("GRIP SOLENOID");
-      if (gripSolenoid.get() == DoubleSolenoid.Value.kOff) {
-        gripSolenoid.set(DoubleSolenoid.Value.kForward);
-      }
-      gripSolenoid.toggle();
-    }
-
-    if (joystick.getRawButtonPressed(8)) {
-      System.out.println("SLIDE SOLENOID");
-      if (slideSolenoid.get() == DoubleSolenoid.Value.kOff) {
-        slideSolenoid.set(DoubleSolenoid.Value.kForward);
-      }
-      slideSolenoid.toggle();
-    }
-
-    if (joystick.getRawButtonPressed(9)) {
-      System.out.println("TURNING OFF SOLENOIDS");
-      gripSolenoid.set(DoubleSolenoid.Value.kOff);
-      slideSolenoid.set(DoubleSolenoid.Value.kOff);
-    }
-
-    if (joystick.getRawButtonPressed(3)) {
-      System.out.println("BALL");
-      ballLockController.toggle();
-    }
+    recorder.tick();
   }
 }
