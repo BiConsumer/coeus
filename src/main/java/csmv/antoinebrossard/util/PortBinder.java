@@ -1,41 +1,28 @@
 package csmv.antoinebrossard.util;
 
-import csmv.antoinebrossard.annotation.Channel;
-import edu.wpi.first.hal.util.AllocationException;
+import csmv.antoinebrossard.annotation.Port;
 import me.yushust.inject.Binder;
+import me.yushust.inject.key.TypeReference;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.HashSet;
-import java.util.Set;
 
-public final class ChannelBinder {
+public final class PortBinder {
 
-    private ChannelBinder() {
+    private PortBinder() {
         throw new UnsupportedOperationException("Cannot instantiate this class!");
     }
 
-    public static <T> void bind(
-            Class<T> clazz,
-            Binder binder
-    )
-            throws
-            NoSuchMethodException
-    {
-        Constructor<T> constructor = clazz.getConstructor(Integer.TYPE);
-
-        for (Channel.Value value : Channel.Value.values()) {
-            if (value.getTargetClass() != clazz) {
-                continue;
-            }
+    public static void bind(Binder binder) throws NoSuchMethodException {
+        for (Port.Value value : Port.Value.values()) {
+            Constructor<?> constructor = value.getTargetClass().getConstructor(Integer.TYPE);
 
             try {
-                T instance = constructor.newInstance(value.getNumber());
+                Object instance = constructor.newInstance(value.getPort());
 
                 binder
-                        .bind(clazz)
-                        .qualified(new ChannelImpl(value))
+                        .bind(TypeReference.of(value.getTargetClass()))
+                        .qualified(new PortImpl(value))
                         .toInstance(instance);
             } catch (Exception exception) {
                 exception.printStackTrace();
@@ -44,12 +31,12 @@ public final class ChannelBinder {
     }
 
     @SuppressWarnings("ClassExplicitlyAnnotation")
-    private static class ChannelImpl implements Channel {
+    private static class PortImpl implements Port {
 
         private final Value value;
         private final int hashCode;
 
-        private ChannelImpl(Value value) {
+        private PortImpl(Value value) {
             this.value = value;
             this.hashCode = (127 * "value".hashCode()) ^ value.hashCode();
         }
@@ -61,7 +48,7 @@ public final class ChannelBinder {
 
         @Override
         public Class<? extends Annotation> annotationType() {
-            return Channel.class;
+            return Port.class;
         }
 
         public int hashCode() {
@@ -71,8 +58,8 @@ public final class ChannelBinder {
         @Override
         public boolean equals(Object obj) {
             if (this == obj) return true;
-            if (!(obj instanceof Channel)) return false;
-            return value.equals(((Channel) obj).value());
+            if (!(obj instanceof Port)) return false;
+            return value.equals(((Port) obj).value());
         }
     }
 }

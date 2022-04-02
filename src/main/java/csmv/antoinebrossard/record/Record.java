@@ -2,18 +2,18 @@ package csmv.antoinebrossard.record;
 
 public class Record {
 
-    private final long timestamp;
+    private final int tick;
     private final String action;
     private final String[] parameters;
 
-    public Record(long timestamp, String action, String[] parameters) {
-        this.timestamp = timestamp;
+    public Record(int tick, String action, String[] parameters) {
+        this.tick = tick;
         this.action = action;
         this.parameters = parameters;
     }
 
-    public long getTimestamp() {
-        return timestamp;
+    public int getTick() {
+        return tick;
     }
 
     public String getAction() {

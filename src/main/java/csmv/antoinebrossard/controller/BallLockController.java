@@ -1,6 +1,6 @@
 package csmv.antoinebrossard.controller;
 
-import csmv.antoinebrossard.annotation.Channel;
+import csmv.antoinebrossard.annotation.Port;
 import edu.wpi.first.wpilibj.Servo;
 
 import javax.inject.Inject;
@@ -12,8 +12,7 @@ public class BallLockController {
     private final Servo servo;
     private boolean locking = true;
 
-    @Inject BallLockController(@Channel(Channel.Value.BALL_LOCK) Servo servoInject) {
-        System.out.println("SETTING SERVO ANGLE TO 0");
+    @Inject BallLockController(@Port(Port.Value.BALL_LOCK) Servo servoInject) {
         servo = servoInject;
         servo.set(0);
     }
